@@ -1,0 +1,200 @@
+#!/usr/bin/env python
+
+import praw
+import random
+import sys
+
+from praw.models import Comment
+
+COMMANDS = [
+    "Go and boil your bottoms",
+    "Depart a lot this time",
+    "Shut your festering gob",
+    "Pull the other one"
+]
+
+ACTIONS = [
+    "I unclog my nose in your direction",
+    "I wave my private parts at your aunties",
+    "I burst my pimples at you",
+    "I call your door opening request a silly thing",
+    "I fart in your general direction",
+    "I blow my nose at you"
+]
+
+NOUNS = [
+    "sons of a window-dresser",
+    "bedwetting types",
+    "wipers of other people's bottoms",
+    "buggerfolk",
+    "kniggets",
+    "food-trough wiper",
+    "pig-dogs",
+    "son of a person",
+    "so-called Arthur King",
+    "trollop",
+    "ponce",
+    "poofter",
+    "carriage ride participant",
+    "pillock",
+    "ratbag",
+    "git",
+    "prancer",
+    "pram pusher",
+    "heap of parrot droppings",
+    "muppet",
+    "uphill gardener",
+    "prat",
+    "tosser",
+    "ditch digger",
+    "old sow",
+    "cow",
+    "antiquarian"
+]
+
+ADJECTIVES = [
+    "empty-headed",
+    "animal",
+    "daffy",
+    "cheesy",
+    "English",
+    "tiny-brained",
+    "illegitimate faced",
+    "second hand",
+    "nasty",
+    "bucktoothed",
+    "tedious",
+    "cloth-eared",
+    "flatulent",
+    "swivel-eyed",
+    "fornicating",
+    "malodorous",
+    "coffee-nosed",
+    "tripe tasting",
+    "sniveling",
+    "snotty faced",
+    "manky",
+    "gormless",
+    "dodgy",
+    "miserable",
+    "cock-eyed",
+    "half-witted",
+    "rancorous",
+    "coiffured",
+    "petulant",
+    "whining",
+    "loose bladdered",
+    "fusty"
+]
+
+NOUN_ADJECTIVE_COMBOS = [
+    "spotted prancer",
+    "slimy trollop",
+    "electric donkey bottom biter",
+    "parsimonious arsemonger",
+    "cheese eating surrender monkey",
+    "prancing pervert",
+    "poovey ponagger",
+    "stuck up twit",
+    "golfing puff adder",
+    "toxic midget",
+    "sabre-toothed tart",
+    "moistened bint",
+    "sour old rat"
+]
+
+ENDINGS = [
+    "Cut the approaching any more or we will fire arrows at the tops of your heads and make castanets out of your "
+    "testicles already! Ha ha!",
+    "And if you think you got nasty taunting this time, you ain't heard nothing yet!",
+    "Thpppt!",
+    "You and your silly English Knnnnnnnn-ighuts",
+    "Your mother was a hamster, and your father smelt of elderberries!",
+    "Now go away or I shall taunt you a second time!",
+    "Fetchez la vache!",
+    "Silly monsieur Arthur-King, who has the brain of a duck, you know!"
+]
+
+
+def usage():
+    return """Usage: insultbot client_id client_secret username password [user_agent]
+    client_id:        your app's client ID (see: https://www.reddit.com/prefs/apps/)
+    client_secret:    your app's client secret
+    username:         the Reddit username of the account to which the app belongs
+    password:         password to the aforementioned account
+    user_agent:       the user agent of the bot (optional, default: {username}-insultbot)
+"""
+
+
+def already_replied(replies, username):
+    for reply in replies:
+        if reply.author and username == reply.author.name:
+            return True
+    return False
+
+
+def generate_insult():
+    insult = ""
+    # 25% chance of getting a command
+    if random.randint(0, 3) == 0:
+        insult += COMMANDS[random.randint(0, len(COMMANDS) - 1)]
+    # 75% chance of getting an "action" if a command wasn't chosen
+    else:
+        insult += ACTIONS[random.randint(0, len(ACTIONS) - 1)]
+
+    insult += ", you "
+
+    # 66% chance of getting a separate noun and adjective
+    if random.randint(0, 2) != 0:
+        insult += ADJECTIVES[random.randint(0, len(ADJECTIVES) - 1)]
+        insult += " "
+        insult += NOUNS[random.randint(0, len(NOUNS) - 1)]
+        insult += "!"
+    # 33% chance of getting a predefined noun adjective combo
+    else:
+        insult += NOUN_ADJECTIVE_COMBOS[random.randint(0, len(NOUN_ADJECTIVE_COMBOS) - 1)]
+        insult += "!"
+
+    # 50% chance of getting an ending if the insult isn't already too long-winded
+    if len(insult) < 80 and random.randint(0, 1) == 0:
+        insult += " "
+        insult += ENDINGS[random.randint(0, len(ENDINGS) - 1)]
+
+    return insult
+
+
+# noinspection PyUnboundLocalVariable
+def main():
+    try:
+        client_id = sys.argv[1]
+        client_secret = sys.argv[2]
+        username = sys.argv[3]
+        password = sys.argv[4]
+        user_agent = sys.argv[5] if len(sys.argv) == 6 else username + "-insultbot"
+    except Exception:
+        print(usage())
+        exit(1)
+
+    reddit = praw.Reddit(client_id=client_id,
+                         client_secret=client_secret,
+                         user_agent=user_agent,
+                         username=username,
+                         password=password)
+
+    for comment in reddit.inbox.mentions():
+        print("Comment ID: " + comment.id)
+        # Can't use comment.refresh() due to some PRAW bug... have to create a new Comment instance instead
+        mention = Comment(reddit, id=comment.id)
+        mention.refresh()
+        if not already_replied(mention.replies, username):
+            insult = generate_insult()
+            print("Replying: " + insult)
+            mention.reply(insult)
+        else:
+            print("Already replied")
+
+    print("Done")
+
+
+if __name__ == '__main__':
+    main()
